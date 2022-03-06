@@ -7,7 +7,7 @@ tensorflow/
 tensorflow_pkg/
 facetone/facetone/__pycache__/
 facetone/foundation/__pycache__/
-
+facetone/foundation/migrations/__pycache__/
 
 # Weird file extensions #
 ###################
