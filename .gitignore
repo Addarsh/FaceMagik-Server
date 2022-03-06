@@ -1,0 +1,14 @@
+# Unecessary directories
+###################
+.idea/
+bin/
+lib/
+tensorflow/
+tensorflow_pkg/
+facetone/facetone/__pycache__/
+facetone/foundation/__pycache__/
+
+
+# Weird file extensions #
+###################
+*.DS_Store
