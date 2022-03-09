@@ -1,29 +1,22 @@
 import uuid
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.utils.translation import ugettext_lazy as _
 
 """
 Represents a user who logs in to the app.
 """
 
 
-class User(models.Model):
-    # Primary key uniquely identifying a user.
+class User(AbstractUser):
+    # Primary key uniquely identifying the user.
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Timestamp when this user row was first created.
-    create_timestamp = models.DateTimeField(auto_now_add=True)
-
-    # First Name of the user.
-    first_name = models.CharField(max_length=200, blank=True)
-
-    # Last Name of the user.
-    last_name = models.CharField(max_length=200, blank=True)
-
     # Email Address of the user.
-    email = models.CharField(max_length=200, blank=True)
+    email = models.EmailField(_('email address'), unique=True)
 
     # Timestamp when this user row was last updated.
-    update_timestamp = models.DateTimeField(auto_now=True)
+    last_updated = models.DateTimeField(auto_now=True)
 
 
 """
@@ -35,7 +28,7 @@ class SkinToneDetectionSession(models.Model):
     # Primary key uniquely identifying the session.
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Each session is associated with a User.
+    # Each session is associated with a AppUser.
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     # Timestamp when this session row was first created.
