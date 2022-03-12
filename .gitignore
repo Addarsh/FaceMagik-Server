@@ -3,6 +3,7 @@
 .idea/
 bin/
 lib/
+share/
 tensorflow/
 tensorflow_pkg/
 facetone/facetone/__pycache__/
