@@ -1,4 +1,5 @@
 import numpy as np
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -8,6 +9,8 @@ from .serializers import SessionSerializer, UserIdSerializer
 from .response_helper import create_response_message
 from .skin_tone_detection_session_helper import SkinToneDetectionSessionHelper, SkinToneSessionState
 from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig
+
+maskrcnn_model = None
 
 
 class Session(APIView):
@@ -42,7 +45,10 @@ class Session(APIView):
         serializer.save_image_to_file()
 
         # Detect lighting conditions.
-        skin_tone_analyzer = Session.create_skin_analyzer(serializer.get_image())
+        global maskrcnn_model
+        if maskrcnn_model is None:
+            Session.load_maskrcnn_model()
+        skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(serializer.get_image()))
         skin_tone_analyzer.get_scene_brightness_and_primary_light_direction()
 
         try:
@@ -55,17 +61,19 @@ class Session(APIView):
             session.id))
 
     """
-    Creates a Skin Tone Analyzer object.
+    Loads MaskRCNN model once per process.
     """
 
     @staticmethod
-    def create_skin_analyzer(image: np.ndarray):
+    def load_maskrcnn_model():
+        global maskrcnn_model
+        if maskrcnn_model is None:
+            maskrcnn_model = SkinToneAnalyzer.construct_model(
+                "/Users/addarsh/virtualenvs/aws_train/src/maskrcnn_model/mask_rcnn_face_0060.h5")
+
+    @staticmethod
+    def get_skin_detection_config(image: np.ndarray):
         skin_detection_config = SkinDetectionConfig()
         skin_detection_config.IMAGE = image
         skin_detection_config.USE_NEW_CLUSTERING_ALGORITHM = True
-
-        # Load MaskRCNN model. Currently using local path to the model.
-        maskrcnn_model = SkinToneAnalyzer.construct_model(
-            "/Users/addarsh/virtualenvs/aws_train/src/maskrcnn_model/mask_rcnn_face_0060.h5")
-
-        return SkinToneAnalyzer(maskrcnn_model, skin_detection_config)
+        return skin_detection_config
