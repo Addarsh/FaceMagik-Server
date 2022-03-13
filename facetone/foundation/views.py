@@ -9,6 +9,8 @@ from .serializers import SessionSerializer, UserIdSerializer
 from .response_helper import create_response_message
 from .skin_tone_detection_session_helper import SkinToneDetectionSessionHelper, SkinToneSessionState
 from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig
+from .navigation_helper import NavigationHelper
+
 
 maskrcnn_model = None
 
@@ -49,7 +51,9 @@ class Session(APIView):
         if maskrcnn_model is None:
             Session.load_maskrcnn_model()
         skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(serializer.get_image()))
-        skin_tone_analyzer.get_scene_brightness_and_primary_light_direction()
+        scene_brightness_and_direction = skin_tone_analyzer.get_scene_brightness_and_primary_light_direction()
+        print("\nScene Brightness and Direction: ", scene_brightness_and_direction, "\n")
+        navigation_instruction = NavigationHelper.get_instruction(scene_brightness_and_direction)
 
         try:
             with transaction.atomic(savepoint=False):
@@ -57,8 +61,9 @@ class Session(APIView):
         except SkinToneDetectionSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("Session does not exist"))
 
-        return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.create_response(
-            session.id))
+        return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.create_navigation_response(
+            session.id, navigation_instruction))
+
 
     """
     Loads MaskRCNN model once per process.
