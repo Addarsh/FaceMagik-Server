@@ -6,9 +6,9 @@ from rest_framework.response import Response
 from django.db import transaction
 from .models import User, SkinToneDetectionSession
 from .serializers import SessionSerializer, UserIdSerializer
-from .response_helper import create_response_message
+from .response_helper import create_response_message, create_response_message_with_error_code
 from .skin_tone_detection_session_helper import SkinToneDetectionSessionHelper, SkinToneSessionState
-from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig
+from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig, TeethNotVisibleException
 from .navigation_helper import NavigationHelper
 
 
@@ -51,9 +51,14 @@ class Session(APIView):
         if maskrcnn_model is None:
             Session.load_maskrcnn_model()
         skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(serializer.get_image()))
-        scene_brightness_and_direction = skin_tone_analyzer.get_scene_brightness_and_primary_light_direction()
-        print("\nScene Brightness and Direction: ", scene_brightness_and_direction, "\n")
-        navigation_instruction = NavigationHelper.get_instruction(scene_brightness_and_direction)
+
+        try:
+            scene_brightness_and_direction = skin_tone_analyzer.get_scene_brightness_and_primary_light_direction()
+            print("\nScene Brightness and Direction: ", scene_brightness_and_direction, "\n")
+            navigation_instruction = NavigationHelper.get_instruction(scene_brightness_and_direction)
+        except TeethNotVisibleException:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=create_response_message_with_error_code(
+                "User teeth not visible", 101))
 
         try:
             with transaction.atomic(savepoint=False):
