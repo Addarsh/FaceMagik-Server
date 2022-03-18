@@ -16,10 +16,10 @@ class NavigationInstruction(Enum):
     LESS_BRIGHTNESS_WALK_FORWARD_SLOWLY = 3
     # User is in neutral lighting conditions and should stop moving.
     NEUTRAL_LIGHTING_STOP = 4
-    # User is mostly facing light but can turn a little to their left to be more direct.
-    TURN_SLIGHTLY_LEFT_TO_FACE_LIGHT = 5
-    # User is mostly facing light but can turn a little to their right to be more direct.
-    TURN_SLIGHTLY_RIGHT_TO_FACE_LIGHT = 6
+    # User is not facing light but can turn left to eventually face light.
+    TURN_LEFT_TO_FACE_LIGHT = 5
+    # User is not facing light but can turn right to eventually face light.
+    TURN_RIGHT_TO_FACE_LIGHT = 6
     # User is 90 degrees from direction of light and needs to turn left.
     TURN_LEFT_90 = 7
     # User is 90 degrees from direction of light and needs to turn right.
@@ -34,7 +34,8 @@ class NavigationHelper:
         primary_light_direction: LightDirection = scene_brightness_and_direction.primary_light_direction
 
         if primary_light_direction == LightDirection.CENTER or primary_light_direction == LightDirection.CENTER_LEFT \
-                or primary_light_direction == LightDirection.CENTER_RIGHT:
+                or primary_light_direction == LightDirection.CENTER_RIGHT or primary_light_direction == \
+                LightDirection.LEFT_CENTER_RIGHT or primary_light_direction == LightDirection.RIGHT_CENTER_LEFT:
             if scene_brightness == SceneBrightness.DARK_SHADOW:
                 # User is opposite to the direction of light.
                 return NavigationInstruction.TURN_AROUND_180
@@ -48,14 +49,12 @@ class NavigationHelper:
                 # User is in neutral lighting conditions and should stop moving.
                 return NavigationInstruction.NEUTRAL_LIGHTING_STOP
             raise ValueError("Unsupported Scene brightness: " + scene_brightness)
-        elif primary_light_direction == LightDirection.RIGHT_CENTER or primary_light_direction == \
-                LightDirection.RIGHT_CENTER_LEFT:
-            # Light is mostly falling directly but slightly to the left as well.
-            return NavigationInstruction.TURN_SLIGHTLY_LEFT_TO_FACE_LIGHT
-        elif primary_light_direction == LightDirection.LEFT_CENTER or primary_light_direction == \
-                LightDirection.LEFT_CENTER_RIGHT:
-            # Light is mostly falling directly but slightly to the right as well.
-            return NavigationInstruction.TURN_SLIGHTLY_RIGHT_TO_FACE_LIGHT
+        elif primary_light_direction == LightDirection.RIGHT_CENTER:
+            # User is not facing light but can turn left to eventually face light.
+            return NavigationInstruction.TURN_LEFT_TO_FACE_LIGHT
+        elif primary_light_direction == LightDirection.LEFT_CENTER:
+            # User is not facing light but can turn right to eventually face light.
+            return NavigationInstruction.TURN_RIGHT_TO_FACE_LIGHT
         elif primary_light_direction == LightDirection.LEFT_TO_RIGHT:
             return NavigationInstruction.TURN_RIGHT_90
         elif primary_light_direction == LightDirection.RIGHT_TO_LEFT:
