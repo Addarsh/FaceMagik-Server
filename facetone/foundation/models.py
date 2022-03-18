@@ -60,6 +60,18 @@ class SkinToneDetectionImage(models.Model):
     # macOS filesystem).
     relative_image_path = models.CharField(max_length=200, blank=True)
 
+    # Brightness value of scene in the image. Defaults to null.
+    scene_brightness_value = models.IntegerField(null=True)
+
+    # Scene Brightness description. Derived from scene brightness value.
+    scene_brightness_description = models.CharField(max_length=200, blank=True)
+
+    # Primary Light Direction in the image. Defaults to null.
+    primary_light_direction = models.CharField(max_length=200, blank=True)
+
+    # Navigation instruction given to user.
+    navigation_instruction = models.CharField(max_length=200, blank=True)
+
 
 
 

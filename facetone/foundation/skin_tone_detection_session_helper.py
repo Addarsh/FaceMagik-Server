@@ -5,6 +5,8 @@ from enum import Enum
 from . import models
 from . import response_helper
 from .navigation_helper import NavigationInstruction
+from facemagik.skintone import SceneBrightnessAndDirection
+from .navigation_helper import NavigationInstruction
 
 
 class SkinToneSessionState(Enum):
@@ -18,8 +20,20 @@ class SkinToneDetectionSessionHelper:
     NAVIGATION_INSTRUCTION_KEY = "navigation_instruction"
 
     @staticmethod
-    def create(state: SkinToneSessionState, user: models.User) -> models.SkinToneDetectionSession:
+    def create_session(state: SkinToneSessionState, user: models.User) -> models.SkinToneDetectionSession:
         return models.SkinToneDetectionSession(state=str(state.name), user=user)
+
+    @staticmethod
+    def create_image(session: models.SkinToneDetectionSession, scene_brightness_and_direction:
+    SceneBrightnessAndDirection, navigation_instruction: NavigationInstruction) -> \
+            models.SkinToneDetectionImage:
+        return models.SkinToneDetectionImage(skin_tone_detection_session=session,
+                                             scene_brightness_value=scene_brightness_and_direction.scene_brightness_value,
+                                             scene_brightness_description=str(
+                                                 scene_brightness_and_direction.scene_brightness().name),
+                                             primary_light_direction=str(
+                                                 scene_brightness_and_direction.primary_light_direction.name),
+                                             navigation_instruction=str(navigation_instruction.name))
 
     @staticmethod
     def create_response(session_id: str):

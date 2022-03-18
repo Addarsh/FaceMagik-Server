@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
-from .models import User, SkinToneDetectionSession
+from .models import User, SkinToneDetectionSession, SkinToneDetectionImage
 from .serializers import SessionSerializer, UserIdSerializer
 from .response_helper import create_response_message, create_response_message_with_error_code
 from .skin_tone_detection_session_helper import SkinToneDetectionSessionHelper, SkinToneSessionState
@@ -28,8 +28,10 @@ class Session(APIView):
         try:
             with transaction.atomic(savepoint=False):
                 user = User.objects.get(pk=user_id)
-                session = SkinToneDetectionSessionHelper.create(SkinToneSessionState.NEW, user)
-                return Response(status=status.HTTP_201_CREATED, data=SkinToneDetectionSessionHelper.create_response(
+                session = SkinToneDetectionSessionHelper.create_session(SkinToneSessionState.NEW, user)
+                session.save()
+
+            return Response(status=status.HTTP_201_CREATED, data=SkinToneDetectionSessionHelper.create_response(
                     session.id))
         except User.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("User does not exist"))
@@ -63,11 +65,14 @@ class Session(APIView):
         try:
             with transaction.atomic(savepoint=False):
                 session = SkinToneDetectionSession.objects.get(pk=session_id)
+                session_image = SkinToneDetectionSessionHelper.create_image(session, scene_brightness_and_direction,
+                                                                    navigation_instruction)
+                session_image.save()
+
+            return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.create_navigation_response(
+                session.id, navigation_instruction))
         except SkinToneDetectionSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("Session does not exist"))
-
-        return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.create_navigation_response(
-            session.id, navigation_instruction))
 
 
     """
