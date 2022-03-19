@@ -7,7 +7,7 @@ from django.db import transaction
 from .models import User, SkinToneDetectionSession
 from .serializers import SessionSerializer, UserIdSerializer, SessionIdSerializer
 from .response_helper import create_response_message, create_response_message_with_error_code
-from .skin_tone_detection_session_helper import SkinToneDetectionSessionHelper, SkinToneSessionState
+from .session_models_manager import SessionModelsManager, SessionState, SessionResponseHelper
 from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig, TeethNotVisibleException
 from .navigation_helper import NavigationHelper, NavigationInstruction
 
@@ -27,10 +27,10 @@ class Session(APIView):
         try:
             with transaction.atomic(savepoint=False):
                 user = User.objects.get(pk=user_id)
-                session = SkinToneDetectionSessionHelper.create_session(SkinToneSessionState.NEW, user)
+                session = SessionModelsManager.create_session(SessionState.NEW, user)
                 session.save()
 
-            return Response(status=status.HTTP_201_CREATED, data=SkinToneDetectionSessionHelper.new_session_created_response(
+            return Response(status=status.HTTP_201_CREATED, data=SessionResponseHelper.new_session_created_response(
                 session.id))
         except User.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("User does not exist"))
@@ -42,15 +42,14 @@ class Session(APIView):
     def post(self, request):
         serializer = SessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        Session.load_maskrcnn_model()
+
         session_id = serializer.get_session_id()
 
         # For debugging purposes only. In production, we would upload the image to blob store like Amazon S3.
         serializer.save_image_to_file()
 
         # Detect lighting conditions.
-        global maskrcnn_model
-        if maskrcnn_model is None:
-            Session.load_maskrcnn_model()
         skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(serializer.get_image()))
 
         try:
@@ -69,19 +68,19 @@ class Session(APIView):
         try:
             with transaction.atomic(savepoint=False):
                 session = SkinToneDetectionSession.objects.get(pk=session_id)
-                session = SkinToneDetectionSessionHelper.update_session_state(session, SkinToneSessionState.IN_PROGRESS)
+                session = SessionModelsManager.update_session_state(session, SessionState.IN_PROGRESS)
                 session.save()
 
-                session_image = SkinToneDetectionSessionHelper.create_image(session, scene_brightness_and_direction,
-                                                                            navigation_instruction)
+                session_image = SessionModelsManager.create_image(session, scene_brightness_and_direction,
+                                                                  navigation_instruction)
                 if navigation_instruction == NavigationInstruction.NEUTRAL_LIGHTING_STOP:
-                    model_skin_tones = SkinToneDetectionSessionHelper.create_skin_tones(skin_tones, session_image)
+                    model_skin_tones = SessionModelsManager.create_skin_tones(skin_tones, session_image)
                     for model_skin_tone in model_skin_tones:
                         model_skin_tone.save()
 
                 session_image.save()
 
-            return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.create_navigation_and_skin_tones_response(
+            return Response(status=status.HTTP_200_OK, data=SessionResponseHelper.create_navigation_and_skin_tones_response(
                 session.id, navigation_instruction, skin_tones))
         except SkinToneDetectionSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("Session does not exist"))
@@ -98,11 +97,11 @@ class Session(APIView):
         try:
             with transaction.atomic(savepoint=False):
                 session = SkinToneDetectionSession.objects.get(pk=session_id)
-                if not SkinToneDetectionSessionHelper.is_state_complete(session):
-                    session = SkinToneDetectionSessionHelper.update_session_state(session, SkinToneSessionState.COMPLETE)
+                if not SessionModelsManager.is_state_complete(session):
+                    session = SessionModelsManager.update_session_state(session, SessionState.COMPLETE)
                     session.save()
 
-            return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.session_ended_response(session_id))
+            return Response(status=status.HTTP_200_OK, data=SessionResponseHelper.session_ended_response(session_id))
 
         except SkinToneDetectionSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("Session does not exist"))
