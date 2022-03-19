@@ -54,3 +54,10 @@ class SessionSerializer(serializers.Serializer):
         with open("displayP3_icc_profile.txt", "rb") as f:
             icc = f.read()
         im.save(self.get_image_name(), icc_profile=icc)
+
+
+class SessionIdSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+
+    def get_session_id(self) -> str:
+        return self.validated_data["session_id"]

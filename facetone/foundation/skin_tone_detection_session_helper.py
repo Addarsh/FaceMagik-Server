@@ -33,6 +33,10 @@ class SkinToneDetectionSessionHelper:
         return session
 
     @staticmethod
+    def is_state_complete(session: models.SkinToneDetectionSession) -> bool:
+        return session.state == str(SkinToneSessionState.COMPLETE.name)
+
+    @staticmethod
     def create_image(session: models.SkinToneDetectionSession, scene_brightness_and_direction:
     SceneBrightnessAndDirection, navigation_instruction: NavigationInstruction) -> \
             models.SkinToneDetectionImage:
@@ -55,7 +59,7 @@ class SkinToneDetectionSessionHelper:
                 skin_tones]
 
     @staticmethod
-    def create_response(session_id: str):
+    def new_session_created_response(session_id: str):
         response_message = response_helper.create_response_message("New skin tone detection session created")
         response_message[SkinToneDetectionSessionHelper.SESSION_ID_KEY] = session_id
         return response_message
@@ -72,4 +76,10 @@ class SkinToneDetectionSessionHelper:
                                                                                 st.percent_of_face_mask} for st
                                                                            in
                                                                            skin_tones]
+        return response_message
+
+    @staticmethod
+    def session_ended_response(session_id: str):
+        response_message = response_helper.create_response_message("Session ended")
+        response_message[SkinToneDetectionSessionHelper.SESSION_ID_KEY] = session_id
         return response_message
