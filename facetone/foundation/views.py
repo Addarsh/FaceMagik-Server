@@ -4,13 +4,12 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
-from .models import User, SkinToneDetectionSession, SkinToneDetectionImage
+from .models import User, SkinToneDetectionSession
 from .serializers import SessionSerializer, UserIdSerializer
 from .response_helper import create_response_message, create_response_message_with_error_code
 from .skin_tone_detection_session_helper import SkinToneDetectionSessionHelper, SkinToneSessionState
 from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig, TeethNotVisibleException
-from .navigation_helper import NavigationHelper
-
+from .navigation_helper import NavigationHelper, NavigationInstruction
 
 maskrcnn_model = None
 
@@ -32,7 +31,7 @@ class Session(APIView):
                 session.save()
 
             return Response(status=status.HTTP_201_CREATED, data=SkinToneDetectionSessionHelper.create_response(
-                    session.id))
+                session.id))
         except User.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("User does not exist"))
 
@@ -55,25 +54,37 @@ class Session(APIView):
         skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(serializer.get_image()))
 
         try:
-            scene_brightness_and_direction = skin_tone_analyzer.get_scene_brightness_and_primary_light_direction()
+            scene_brightness_and_direction = skin_tone_analyzer.get_primary_light_direction_and_scene_brightness()
             print("\nScene Brightness and Direction: ", scene_brightness_and_direction, "\n")
             navigation_instruction = NavigationHelper.get_instruction(scene_brightness_and_direction)
         except TeethNotVisibleException:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=create_response_message_with_error_code(
                 "User teeth not visible", 101))
 
+        skin_tones = []
+        if navigation_instruction == NavigationInstruction.NEUTRAL_LIGHTING_STOP:
+            # User is in neutral lighting. Compute skin tones.
+            skin_tones = skin_tone_analyzer.get_skin_tones()
+
         try:
             with transaction.atomic(savepoint=False):
                 session = SkinToneDetectionSession.objects.get(pk=session_id)
+                session = SkinToneDetectionSessionHelper.update_session_state(session, SkinToneSessionState.IN_PROGRESS)
+                session.save()
+
                 session_image = SkinToneDetectionSessionHelper.create_image(session, scene_brightness_and_direction,
-                                                                    navigation_instruction)
+                                                                            navigation_instruction)
+                if navigation_instruction == NavigationInstruction.NEUTRAL_LIGHTING_STOP:
+                    model_skin_tones = SkinToneDetectionSessionHelper.create_skin_tones(skin_tones, session_image)
+                    for model_skin_tone in model_skin_tones:
+                        model_skin_tone.save()
+
                 session_image.save()
 
-            return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.create_navigation_response(
-                session.id, navigation_instruction))
+            return Response(status=status.HTTP_200_OK, data=SkinToneDetectionSessionHelper.create_navigation_and_skin_tones_response(
+                session.id, navigation_instruction, skin_tones))
         except SkinToneDetectionSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("Session does not exist"))
-
 
     """
     Loads MaskRCNN model once per process.

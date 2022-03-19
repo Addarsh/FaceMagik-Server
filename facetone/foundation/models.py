@@ -73,7 +73,27 @@ class SkinToneDetectionImage(models.Model):
     navigation_instruction = models.CharField(max_length=200, blank=True)
 
 
+"""
+Skin tone from a neutral image uploaded by the user.
+"""
 
 
+class SkinTone(models.Model):
+    # Primary key uniquely identifying the instance of the skin tone.
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    # Image associated with given skin color.
+    skin_tone_detection_image = models.ForeignKey(SkinToneDetectionImage, on_delete=models.CASCADE)
+
+    # Timestamp when this skin tone row was added.
+    create_timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # RGB values of the skin tone. It's an array stored as a JSON string.
+    rgb_values = models.CharField(max_length=200, blank=True)
+
+    # Color profile. Usually display3 or sRGB.
+    color_profile = models.CharField(max_length=200, blank=True)
+
+    # Percentage of face mask covered by this color. Values are between 0 and 100.
+    percentage_of_face_mask = models.IntegerField()
 
