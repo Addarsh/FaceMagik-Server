@@ -1,4 +1,6 @@
 import numpy as np
+import base64
+import cv2
 
 from rest_framework import status
 from rest_framework.views import APIView
@@ -10,6 +12,7 @@ from .response_helper import create_response_message, create_response_message_wi
 from .session_models_manager import SessionModelsManager, SessionState, SessionResponseHelper
 from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig, TeethNotVisibleException
 from .navigation_helper import NavigationHelper, NavigationInstruction
+from PIL import Image
 
 maskrcnn_model = None
 
@@ -23,6 +26,7 @@ class Session(APIView):
         qp = UserIdSerializer(data=request.query_params)
         qp.is_valid(raise_exception=True)
         user_id = qp.get_user_id()
+        Session.load_maskrcnn_model()
 
         try:
             with transaction.atomic(savepoint=False):
@@ -45,12 +49,14 @@ class Session(APIView):
         Session.load_maskrcnn_model()
 
         session_id = serializer.get_session_id()
+        image_name = serializer.get_image_name()
+        image = Session.get_image(request.data["image"])
 
         # For debugging purposes only. In production, we would upload the image to blob store like Amazon S3.
-        serializer.save_image_to_file()
+        Session.save_image_to_file(image_name, image)
 
         # Detect lighting conditions.
-        skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(serializer.get_image()))
+        skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(image))
 
         try:
             scene_brightness_and_direction = skin_tone_analyzer.get_primary_light_direction_and_scene_brightness()
@@ -80,8 +86,9 @@ class Session(APIView):
 
                 session_image.save()
 
-            return Response(status=status.HTTP_200_OK, data=SessionResponseHelper.create_navigation_and_skin_tones_response(
-                session.id, navigation_instruction, skin_tones))
+            return Response(status=status.HTTP_200_OK,
+                            data=SessionResponseHelper.create_navigation_and_skin_tones_response(
+                                session.id, navigation_instruction, skin_tones))
         except SkinToneDetectionSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("Session does not exist"))
 
@@ -123,3 +130,17 @@ class Session(APIView):
         skin_detection_config.IMAGE = image
         skin_detection_config.USE_NEW_CLUSTERING_ALGORITHM = True
         return skin_detection_config
+
+    @staticmethod
+    def get_image(base64_str):
+        decoded_bytes = base64.b64decode(base64_str)
+        im_arr = np.frombuffer(decoded_bytes, dtype=np.uint8)
+        cv_image = cv2.imdecode(im_arr, flags=cv2.IMREAD_COLOR)
+        return cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+    @staticmethod
+    def save_image_to_file(image_name, img):
+        im = Image.fromarray(img)
+        with open("displayP3_icc_profile.txt", "rb") as f:
+            icc = f.read()
+        im.save(image_name, icc_profile=icc)
