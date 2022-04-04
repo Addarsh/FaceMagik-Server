@@ -10,7 +10,9 @@ from .models import User, SkinToneDetectionSession
 from .serializers import SessionSerializer, UserIdSerializer, SessionIdSerializer
 from .response_helper import create_response_message, create_response_message_with_error_code
 from .session_models_manager import SessionModelsManager, SessionState, SessionResponseHelper
-from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig, TeethNotVisibleException
+from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig, TeethNotVisibleException, FaceMaskInfo, \
+    NoseMiddlePoint
+from facemagik.utils import ImageUtils
 from .navigation_helper import NavigationHelper, NavigationInstruction
 from PIL import Image
 
@@ -51,12 +53,24 @@ class Session(APIView):
         session_id = serializer.get_session_id()
         image_name = serializer.get_image_name()
         image = Session.get_image(request.data["image"])
+        face_mask = Session.get_image(request.data["face_mask"])
+        mouth_mask = Session.get_image(request.data["mouth_mask"])
+        left_eye_mask = Session.get_image(request.data["left_eye_mask"])
+        right_eye_mask = Session.get_image(request.data["right_eye_mask"])
+        nose_middle_point = request.data["nose_middle_point"]
 
         # For debugging purposes only. In production, we would upload the image to blob store like Amazon S3.
         Session.save_image_to_file(image_name, image)
+        Session.save_image_to_file("test_face_mask.png", face_mask)
+        Session.save_image_to_file("test_mouth_mask.png", mouth_mask)
+        Session.save_image_to_file("left_eye_mask.png", left_eye_mask)
+        Session.save_image_to_file("right_eye_mask.png", right_eye_mask)
+        Session.save_nose_middle_point_to_file(nose_middle_point)
 
         # Detect lighting conditions.
-        skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(image))
+        face_mask_info = Session.create_face_mask_info(face_mask, mouth_mask, left_eye_mask, right_eye_mask,
+                                                       nose_middle_point)
+        skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(image), face_mask_info)
 
         try:
             scene_brightness_and_direction = skin_tone_analyzer.get_primary_light_direction_and_scene_brightness()
@@ -113,6 +127,21 @@ class Session(APIView):
         except SkinToneDetectionSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND, data=create_response_message("Session does not exist"))
 
+    @staticmethod
+    def create_face_mask_info(face_mask_to_process_rgb, mouth_mask_to_process_rgb, left_eye_mask_rgb,
+                              right_eye_mask_rgb, nose_middle_point):
+        face_mask_info = FaceMaskInfo(
+            face_mask_to_process=Session.get_boolean_mask_from_rgb_image(face_mask_to_process_rgb),
+            mouth_mask_to_process=Session.get_boolean_mask_from_rgb_image(mouth_mask_to_process_rgb),
+            nose_middle_point=NoseMiddlePoint(x=nose_middle_point[0], y=nose_middle_point[1]),
+            left_eye_mask=Session.get_boolean_mask_from_rgb_image(left_eye_mask_rgb),
+            right_eye_mask=Session.get_boolean_mask_from_rgb_image(right_eye_mask_rgb))
+        return face_mask_info
+
+    @staticmethod
+    def get_boolean_mask_from_rgb_image(rgb_image):
+        return ImageUtils.get_boolean_mask(cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY))
+
     """
     Loads MaskRCNN model once per process.
     """
@@ -144,3 +173,9 @@ class Session(APIView):
         with open("displayP3_icc_profile.txt", "rb") as f:
             icc = f.read()
         im.save(image_name, icc_profile=icc)
+
+    @staticmethod
+    def save_nose_middle_point_to_file(nose_middle_point):
+        with open("nose_middle_point.txt", "w") as f:
+            for v in nose_middle_point:
+                f.write("%s\n" % v)
