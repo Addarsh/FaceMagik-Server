@@ -58,6 +58,13 @@ class Session(APIView):
         left_eye_mask = Session.get_image(request.data["left_eye_mask"])
         right_eye_mask = Session.get_image(request.data["right_eye_mask"])
         nose_middle_point = request.data["nose_middle_point"]
+        face_till_nose_end_contour_points = request.data["face_till_nose_end_contour_points"]
+        mouth_without_lips_contour_points = request.data["mouth_without_lips_contour_points"]
+        mouth_with_lips_contour_points = request.data["mouth_with_lips_contour_points"]
+        left_eye_contour_points = request.data["left_eye_contour_points"]
+        right_eye_contour_points = request.data["right_eye_contour_points"]
+        left_eyebrow_contour_points = request.data["left_eyebrow_contour_points"]
+        right_eyebrow_contour_points = request.data["right_eyebrow_contour_points"]
 
         # For debugging purposes only. In production, we would upload the image to blob store like Amazon S3.
         Session.save_image_to_file(image_name, image)
@@ -66,6 +73,13 @@ class Session(APIView):
         Session.save_image_to_file("left_eye_mask.png", left_eye_mask)
         Session.save_image_to_file("right_eye_mask.png", right_eye_mask)
         Session.save_nose_middle_point_to_file(nose_middle_point)
+        Session.save_contour_points_to_file("face_till_nose_end_contour_points.txt", face_till_nose_end_contour_points)
+        Session.save_contour_points_to_file("mouth_without_lips_contour_points.txt", mouth_without_lips_contour_points)
+        Session.save_contour_points_to_file("mouth_with_lips_contour_points.txt", mouth_with_lips_contour_points)
+        Session.save_contour_points_to_file("left_eye_contour_points.txt", left_eye_contour_points)
+        Session.save_contour_points_to_file("right_eye_contour_points.txt", right_eye_contour_points)
+        Session.save_contour_points_to_file("left_eyebrow_contour_points.txt", left_eyebrow_contour_points)
+        Session.save_contour_points_to_file("right_eyebrow_contour_points.txt", right_eyebrow_contour_points)
 
         # Detect lighting conditions.
         face_mask_info = Session.create_face_mask_info(face_mask, mouth_mask, left_eye_mask, right_eye_mask,
@@ -179,3 +193,8 @@ class Session(APIView):
         with open("nose_middle_point.txt", "w") as f:
             for v in nose_middle_point:
                 f.write("%s\n" % v)
+
+    @staticmethod
+    def save_contour_points_to_file(fname, mouth_contour_points):
+        with open(fname, "w") as f:
+            f.write(str(mouth_contour_points))
