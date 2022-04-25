@@ -26,7 +26,10 @@ SECRET_KEY = '^%@y3s!u$==f@#h8lvk81#xkkn&_1o(j73j30w%=@p5i(=*e@a'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [".ngrok.io"]
+if 'RDS_DB_NAME' in os.environ:
+    ALLOWED_HOSTS = [".elasticbeanstalk.com", ".awstrack.me", "34.215.220.1", "52.39.104.119"]
+else:
+    ALLOWED_HOSTS = [".ngrok.io"]
 
 
 # Application definition
@@ -77,23 +80,40 @@ WSGI_APPLICATION = 'facetone.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'facemagik',
-        'USER': 'django',
-        'PASSWORD': 'django',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-        'OPTIONS': {
-            # Using Serializable which is the highest level of isolation offered by Postgres. Check out
-            # https://www.youtube.com/watch?v=4EajrPgJAk0&t=1525s for an excellent explanation of different isolation
-            # levels in Postgres with examples.
-            'isolation_level': psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE,
-        },
+if 'RDS_DB_NAME' in os.environ:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ['RDS_DB_NAME'],
+            'USER': os.environ['RDS_USERNAME'],
+            'PASSWORD': os.environ['RDS_PASSWORD'],
+            'HOST': os.environ['RDS_HOSTNAME'],
+            'PORT': os.environ['RDS_PORT'],
+            'OPTIONS': {
+                # Using Serializable which is the highest level of isolation offered by Postgres. Check out
+                # https://www.youtube.com/watch?v=4EajrPgJAk0&t=1525s for an excellent explanation of different isolation
+                # levels in Postgres with examples.
+                'isolation_level': psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE,
+            },
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'facemagik',
+            'USER': 'django',
+            'PASSWORD': 'django',
+            'HOST': '127.0.0.1',
+            'PORT': '5432',
+            'OPTIONS': {
+                # Using Serializable which is the highest level of isolation offered by Postgres. Check out
+                # https://www.youtube.com/watch?v=4EajrPgJAk0&t=1525s for an excellent explanation of different isolation
+                # levels in Postgres with examples.
+                'isolation_level': psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE,
+            },
+        }
+    }
 
 
 # Password validation

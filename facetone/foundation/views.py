@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import base64
 import cv2
@@ -15,8 +16,23 @@ from facemagik.skintone import SkinToneAnalyzer, SkinDetectionConfig, TeethNotVi
 from facemagik.utils import ImageUtils
 from .navigation_helper import NavigationHelper, NavigationInstruction
 from PIL import Image
+from . import models
 
 maskrcnn_model = None
+
+
+class TestUser(APIView):
+    """
+    Initialize a new test user. Used for testing purposes only until auth is introduced.
+    """
+
+    def put(self, request):
+        user = models.User(username=request.data["username"], email=request.data["email"])
+
+        with transaction.atomic(savepoint=False):
+            user.save()
+
+        return Response(status=status.HTTP_201_CREATED, data={"user_id": user.id})
 
 
 class Session(APIView):
@@ -49,6 +65,8 @@ class Session(APIView):
         serializer = SessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        Session.load_maskrcnn_model()
+
         session_id = serializer.get_session_id()
         image_name = serializer.get_image_name()
         image = Session.get_image(request.data["image"])
@@ -61,18 +79,20 @@ class Session(APIView):
         left_eyebrow_contour_points = request.data["left_eyebrow_contour_points"]
         right_eyebrow_contour_points = request.data["right_eyebrow_contour_points"]
 
-        # For debugging purposes only. In production, we would upload the image to blob store like Amazon S3.
-        Session.save_image_to_file(image_name, image)
-        Session.save_nose_middle_point_to_file(nose_middle_point)
-        Session.save_contour_points_to_file("face_till_nose_end_contour_points.txt", face_till_nose_end_contour_points)
-        Session.save_contour_points_to_file("mouth_without_lips_contour_points.txt", mouth_without_lips_contour_points)
-        Session.save_contour_points_to_file("mouth_with_lips_contour_points.txt", mouth_with_lips_contour_points)
-        Session.save_contour_points_to_file("left_eye_contour_points.txt", left_eye_contour_points)
-        Session.save_contour_points_to_file("right_eye_contour_points.txt", right_eye_contour_points)
-        Session.save_contour_points_to_file("left_eyebrow_contour_points.txt", left_eyebrow_contour_points)
-        Session.save_contour_points_to_file("right_eyebrow_contour_points.txt", right_eyebrow_contour_points)
+        if 'RDS_DB_NAME' not in os.environ:
+            # For debugging purposes only. In production, we would upload the image to blob store like Amazon S3.
+            Session.save_image_to_file(image_name, image)
+            Session.save_nose_middle_point_to_file(nose_middle_point)
+            Session.save_contour_points_to_file("face_till_nose_end_contour_points.txt", face_till_nose_end_contour_points)
+            Session.save_contour_points_to_file("mouth_without_lips_contour_points.txt", mouth_without_lips_contour_points)
+            Session.save_contour_points_to_file("mouth_with_lips_contour_points.txt", mouth_with_lips_contour_points)
+            Session.save_contour_points_to_file("left_eye_contour_points.txt", left_eye_contour_points)
+            Session.save_contour_points_to_file("right_eye_contour_points.txt", right_eye_contour_points)
+            Session.save_contour_points_to_file("left_eyebrow_contour_points.txt", left_eyebrow_contour_points)
+            Session.save_contour_points_to_file("right_eyebrow_contour_points.txt", right_eyebrow_contour_points)
 
         # Detect lighting conditions.
+        """
         face_mask_info = Session.create_face_mask_info_from_contour_points(image=image,
                                                                            face_till_nose_end_cpts=np.array(
                                                                                face_till_nose_end_contour_points),
@@ -87,6 +107,8 @@ class Session(APIView):
                                                                            mouth_without_lips_cpts=
                                                                            np.array(mouth_without_lips_contour_points),
                                                                            nose_middle_point=nose_middle_point)
+        """
+        face_mask_info = None
         skin_tone_analyzer = SkinToneAnalyzer(maskrcnn_model, Session.get_skin_detection_config(image), face_mask_info)
 
         try:
@@ -183,9 +205,13 @@ class Session(APIView):
     @staticmethod
     def load_maskrcnn_model():
         global maskrcnn_model
+        if 'RDS_DB_NAME' in os.environ:
+            path_prefix = "/tmp/"
+        else:
+            path_prefix = "/Users/addarsh/virtualenvs/aws_train/src/maskrcnn_model/"
         if maskrcnn_model is None:
             maskrcnn_model = SkinToneAnalyzer.construct_model(
-                "/Users/addarsh/virtualenvs/aws_train/src/maskrcnn_model/mask_rcnn_face_0060.h5")
+                path_prefix + "mask_rcnn_face_0060.h5")
 
     @staticmethod
     def get_skin_detection_config(image: np.ndarray):

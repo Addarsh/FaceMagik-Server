@@ -1,0 +1,10 @@
+eb ssh - To SSH into EB instance
+eb logs - Fetch all logs from EB instance. Useful for debugging deployment failure.
+eb deploy - To deploy an instance.
+cd /var/app - Application source code + installed libs directory
+vi /var/log/cfn-init-cmd.log - Log file to debug errors in ebextension commands during deployment
+vi /var/log/eb-engine.log - Engine logs. Overview of deployment.
+vi /var/log/cfn-init.log - Overview of build process (Can tell which command failed)
+https://aws.amazon.com/premiumsupport/knowledge-center/elastic-beanstalk-env-variables-shell/ - Copying all EB env variables to shell (used to get GitHub tokens on shell so the pip install of private GitHub repositories work)
+
+https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html - How to connect to RDS postgres database. You can find dynamo, username and password information from the instance shell since all env configuration variables are copied to the shell.
