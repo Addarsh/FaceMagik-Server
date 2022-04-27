@@ -5,6 +5,19 @@ cd /var/app - Application source code + installed libs directory
 vi /var/log/cfn-init-cmd.log - Log file to debug errors in ebextension commands during deployment
 vi /var/log/eb-engine.log - Engine logs. Overview of deployment.
 vi /var/log/cfn-init.log - Overview of build process (Can tell which command failed)
+Vi /var/log/web.stdout.log - Web (Django) logs. Most useful for application.
 https://aws.amazon.com/premiumsupport/knowledge-center/elastic-beanstalk-env-variables-shell/ - Copying all EB env variables to shell (used to get GitHub tokens on shell so the pip install of private GitHub repositories work)
 
-https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html - How to connect to RDS postgres database. You can find dynamo, username and password information from the instance shell since all env configuration variables are copied to the shell.
+https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ConnectToPostgreSQLInstance.html - How to connect to RDS postgres database. You can find dynamo, username and password information from the instance shell since all env configuration variables are copied to the shell.
+
+# Local Postgres database
+psql -d facemagik -U django
+
+# start ngrok
+Cd ~/ngrok
+./ngrok http 8000
+
+Instance types: t3.large, c5a.4xlarge, c6a.8xlarge, c5.9xlarge
+
+Download file from EC2 instance:
+scp -i ~/.ssh/ ec2-user@54.200.14.140:/tmp/my_image.png aws_my_image.png

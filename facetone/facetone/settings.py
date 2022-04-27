@@ -27,7 +27,7 @@ SECRET_KEY = '^%@y3s!u$==f@#h8lvk81#xkkn&_1o(j73j30w%=@p5i(=*e@a'
 DEBUG = True
 
 if 'RDS_DB_NAME' in os.environ:
-    ALLOWED_HOSTS = [".elasticbeanstalk.com", ".awstrack.me", "34.215.220.1", "52.39.104.119"]
+    ALLOWED_HOSTS = [".elasticbeanstalk.com", ".awstrack.me", "34.215.220.1", "52.39.104.119", "52.42.104.250"]
 else:
     ALLOWED_HOSTS = [".ngrok.io"]
 
