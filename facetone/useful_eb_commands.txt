@@ -21,3 +21,10 @@ Instance types: t3.large, c5a.4xlarge, c6a.8xlarge, c5.9xlarge
 
 Download file from EC2 instance:
 scp -i ~/.ssh/ ec2-user@54.200.14.140:/tmp/my_image.png aws_my_image.png
+
+# Limit of file handles that can be opened.
+Check limit: ulimit -n (default is 256)
+Update value: ulimit -n NUMBER
+
+# Command to kill process on already used Django port
+lsof -t -i tcp:8000 | xargs kill -9
